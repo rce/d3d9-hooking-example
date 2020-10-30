@@ -7,6 +7,7 @@
 #define HOOKMETHOD HOOKMETHOD_DUMMYDEVICE
 
 #include "hook.hpp"
+#include "injectionlock.hpp"
 #if HOOKMETHOD == HOOKMETHOD_DUMMYDEVICE
 #include "dummydevice.hpp"
 #endif
@@ -26,8 +27,10 @@ void initConsole();
 DWORD WINAPI MainThread(LPVOID lpThreadParameter)
 {
 	HMODULE hModule = static_cast<HMODULE>(lpThreadParameter);
-
 	initConsole();
+
+	InjectionLock lock{};
+
 	auto addrEndScene = FindEndScene();
 	if (addrEndScene)
 	{
@@ -38,6 +41,7 @@ DWORD WINAPI MainThread(LPVOID lpThreadParameter)
 		std::cout << "error: findEndScene" << std::endl;
 	}
 
+	lock.WaitForLockRequest();
 	// TODO Remove hook
 
 	return 0;
