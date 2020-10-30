@@ -28,3 +28,18 @@ Function HookWithTrampoline(Function hook, uintptr_t target, size_t trampolineSi
 
 	return reinterpret_cast<Function>(trampoline);
 }
+
+template <typename Function>
+void RevertHookWithTrampoline(Function original, uintptr_t target, size_t trampolineSize)
+{
+	auto trampoline = reinterpret_cast<uint8_t*>(original);
+
+	// Copy bytes from trampoline back to target function
+	DWORD oldProtect;
+	VirtualProtect(reinterpret_cast<void*>(target), trampolineSize, PAGE_EXECUTE_READWRITE, &oldProtect);
+	memcpy(reinterpret_cast<void*>(target), trampoline, 7);
+	VirtualProtect(reinterpret_cast<void*>(target), trampolineSize, oldProtect, &oldProtect);
+
+	// Free the allocated trampoline
+	delete[] trampoline;
+}

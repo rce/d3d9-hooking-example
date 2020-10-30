@@ -42,7 +42,8 @@ DWORD WINAPI MainThread(LPVOID lpThreadParameter)
 	}
 
 	lock.WaitForLockRequest();
-	// TODO Remove hook
+	RevertHookWithTrampoline(originalEndScene, addrEndScene, 7);
+	originalEndScene = nullptr;
 
 	return 0;
 }
