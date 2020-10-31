@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include <iostream>
+
 #include <d3d9.h>
 #pragma comment (lib, "d3d9.lib")
 
@@ -12,13 +13,37 @@
 #include "dummydevice.hpp"
 #endif
 
+#include "imguioverlay.hpp"
+LPCWSTR gWindowName = L"d3d9-example-target";
+
+void RenderOverlay(IDirect3DDevice9* pDevice)
+{
+	imguioverlay::EndScene(pDevice, gWindowName);
+	if (!imguioverlay::ReadyToRender()) return;
+
+	ImGui_ImplDX9_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+
+
+	ImGui::SetNextWindowPos(ImVec2(10, 50));
+	ImGui::SetNextWindowSize(ImVec2(200, 200));
+	ImGui::SetNextWindowBgAlpha(0.3f);
+
+	ImGui::Begin("Overlay");
+	ImGui::Text("Hello, world!");
+	ImGui::End();
+
+	ImGui::EndFrame();
+	ImGui::Render();
+	ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
+}
+
 typedef HRESULT (__stdcall *EndScene_t)(IDirect3DDevice9* pDevice);
 EndScene_t originalEndScene = nullptr;
 HRESULT __stdcall hookEndScene(IDirect3DDevice9* pDevice)
 {
-	std::cout << "hookEndScene(" << std::hex << pDevice << ")" << std::endl;
-	// Clear the whole window to bright green so it's obvious we are hooked and can draw
-	pDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 255, 0), 1.0f, 0);
+	RenderOverlay(pDevice);
 	return originalEndScene(pDevice);
 }
 
@@ -42,6 +67,8 @@ DWORD WINAPI MainThread(LPVOID lpThreadParameter)
 	}
 
 	lock.WaitForLockRequest();
+
+	imguioverlay::Cleanup();
 	RevertHookWithTrampoline(originalEndScene, addrEndScene, 7);
 	originalEndScene = nullptr;
 

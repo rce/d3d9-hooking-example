@@ -1,0 +1,3 @@
+[submodule "d3d9-example-dll/imgui"]
+	path = d3d9-example-dll/imgui
+	url = https://github.com/ocornut/imgui.git
