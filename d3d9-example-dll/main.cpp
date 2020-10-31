@@ -4,14 +4,9 @@
 #include <d3d9.h>
 #pragma comment (lib, "d3d9.lib")
 
-#define HOOKMETHOD_DUMMYDEVICE 0x01
-#define HOOKMETHOD HOOKMETHOD_DUMMYDEVICE
-
 #include "hook.hpp"
 #include "injectionlock.hpp"
-#if HOOKMETHOD == HOOKMETHOD_DUMMYDEVICE
 #include "dummydevice.hpp"
-#endif
 
 #include "offsets.hpp"
 #include "imguioverlay.hpp"
