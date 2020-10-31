@@ -159,6 +159,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dummydevice.hpp" />
+    <ClInclude Include="GTAIV.hpp" />
     <ClInclude Include="hook.hpp" />
     <ClInclude Include="imgui\backends\imgui_impl_dx9.h" />
     <ClInclude Include="imgui\backends\imgui_impl_win32.h" />

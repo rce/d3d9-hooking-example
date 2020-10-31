@@ -59,6 +59,9 @@
     <ClInclude Include="injectionlock.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="GTAIV.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="imgui\backends\imgui_impl_win32.h">
       <Filter>imgui</Filter>
     </ClInclude>

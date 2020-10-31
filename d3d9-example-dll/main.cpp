@@ -13,8 +13,12 @@
 #include "dummydevice.hpp"
 #endif
 
+#include "offsets.hpp"
 #include "imguioverlay.hpp"
-LPCWSTR gWindowName = L"d3d9-example-target";
+
+LPCWSTR gWindowName = L"GTAIV";
+
+CPlayerPed* gPlayer = nullptr;
 
 void RenderOverlay(IDirect3DDevice9* pDevice)
 {
@@ -30,8 +34,21 @@ void RenderOverlay(IDirect3DDevice9* pDevice)
 	ImGui::SetNextWindowSize(ImVec2(200, 200));
 	ImGui::SetNextWindowBgAlpha(0.3f);
 
-	ImGui::Begin("Overlay");
-	ImGui::Text("Hello, world!");
+	ImGui::Begin("Information");
+	if (gPlayer)
+	{
+		ImGui::Text("Health: %3.1f/200.0", gPlayer->mHealth);
+		ImGui::Text("Armor:  %3.1f/100.0", gPlayer->mArmor);
+
+		if (gPlayer->mLastVehicle)
+		{
+			ImGui::Text("Latest vehicle: %s", gPlayer->mLastVehicle->mVehicleName);
+		}
+		else
+		{
+			ImGui::Text("Latest vehicle: N/A");
+		}
+	}
 	ImGui::End();
 
 	ImGui::EndFrame();
@@ -55,6 +72,8 @@ DWORD WINAPI MainThread(LPVOID lpThreadParameter)
 	initConsole();
 
 	InjectionLock lock{};
+	gPlayer = FindPlayer();
+	std::cout << "gPlayer == " << std::hex << gPlayer << std::endl;
 
 	auto addrEndScene = FindEndScene();
 	if (addrEndScene)
@@ -71,6 +90,7 @@ DWORD WINAPI MainThread(LPVOID lpThreadParameter)
 	imguioverlay::Cleanup();
 	RevertHookWithTrampoline(originalEndScene, addrEndScene, 7);
 	originalEndScene = nullptr;
+	gPlayer = nullptr;
 
 	return 0;
 }
