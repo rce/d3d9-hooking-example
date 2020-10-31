@@ -1,5 +1,7 @@
 # d3d9-hooking-example
 
+![ImGui overlay on Grand Theft Auto IV](docs/imgui.png)
+
 ## What is (Direct3D9) hooking
 
 Simply put hooking means directing code flow to your own code from somewhere
