@@ -1,49 +1,117 @@
 #include <Windows.h>
 #include <d3d9.h>
+#include <DirectXMath.h>
+#include <iostream>
+#include <filesystem>
 
 #pragma comment (lib, "d3d9.lib")
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 std::pair<int, int> gResolution = { 1280, 720 };
+float aspectRatio() {
+	return static_cast<float>(gResolution.first) / static_cast<float>(gResolution.second);
+}
 
 LPDIRECT3D9 g_pD3D;
 LPDIRECT3DDEVICE9 g_pDevice;
 
-#define CUSTOMFVF (D3DFVF_XYZRHW | D3DFVF_DIFFUSE)
-struct Vertex { FLOAT x, y, z, rhw; DWORD color; };
+#define CUSTOMFVF (D3DFVF_XYZ | D3DFVF_DIFFUSE)
+struct Vertex { FLOAT x, y, z; DWORD color; };
 
-LPDIRECT3DVERTEXBUFFER9 vbTriangle;
+LPDIRECT3DVERTEXBUFFER9 vbObject;
+Vertex vsObject[] =
+{
+	{ -3.0f, 3.0f, -3.0f, D3DCOLOR_XRGB(111, 111, 255) },
+	{ 3.0f, 3.0f, -3.0f, D3DCOLOR_XRGB(111, 255, 111) },
+	{ -3.0f, -3.0f, -3.0f, D3DCOLOR_XRGB(255, 111, 111) },
+	{ 3.0f, -3.0f, -3.0f, D3DCOLOR_XRGB(111, 255, 255) },
+	{ -3.0f, 3.0f, 3.0f, D3DCOLOR_XRGB(111, 111, 255) },
+	{ 3.0f, 3.0f, 3.0f, D3DCOLOR_XRGB(255, 111, 111) },
+	{ -3.0f, -3.0f, 3.0f, D3DCOLOR_XRGB(111, 255, 111) },
+	{ 3.0f, -3.0f, 3.0f, D3DCOLOR_XRGB(111, 255, 255) },
+};
+
+LPDIRECT3DINDEXBUFFER9 ibObject;
+short isObject[] =
+{
+    0, 1, 2,    // side 1
+    2, 1, 3,
+    4, 0, 6,    // side 2
+    6, 0, 2,
+    7, 5, 6,    // side 3
+    6, 5, 4,
+    3, 1, 7,    // side 4
+    7, 1, 5,
+    4, 5, 0,    // side 5
+    0, 5, 1,
+    3, 7, 2,    // side 6
+    2, 7, 6,
+};
+
+LPDIRECT3DVERTEXBUFFER9 floorVertexBuffer;
+Vertex floorVertices[] =
+{
+	{ -50.0f, 0.0f, -50.0f, D3DCOLOR_XRGB(55, 55, 55) },
+	{ -50.0f, 0.0f,  50.0f, D3DCOLOR_XRGB(55, 55, 55) },
+	{  50.0f, 0.0f, -50.0f, D3DCOLOR_XRGB(55, 55, 55) },
+
+	{ -50.0f, 0.0f,  50.0f, D3DCOLOR_XRGB(55, 55, 55) },
+	{  50.0f, 0.0f,  50.0f, D3DCOLOR_XRGB(55, 55, 55) },
+	{  50.0f, 0.0f, -50.0f, D3DCOLOR_XRGB(55, 55, 55) },
+};
 
 void initGraphics()
 {
-	g_pDevice->CreateVertexBuffer(sizeof(Vertex) * 3, 0, CUSTOMFVF, D3DPOOL_MANAGED, &vbTriangle, NULL);
+	VOID* pVoid;
+
+	g_pDevice->CreateVertexBuffer(sizeof(floorVertices), 0, CUSTOMFVF, D3DPOOL_MANAGED, &floorVertexBuffer, NULL);
+	floorVertexBuffer->Lock(0, 0, &pVoid, 0);
+	memcpy(pVoid, floorVertices, sizeof(floorVertices));
+	floorVertexBuffer->Unlock();
+
+	g_pDevice->CreateVertexBuffer(sizeof(vsObject), 0, CUSTOMFVF, D3DPOOL_MANAGED, &vbObject, NULL);
+	vbObject->Lock(0, 0, &pVoid, 0);
+	memcpy(pVoid, vsObject, sizeof(vsObject));
+	vbObject->Unlock();
+
+	g_pDevice->CreateIndexBuffer(sizeof(isObject), 0, D3DFMT_INDEX16, D3DPOOL_MANAGED, &ibObject, NULL);
+	ibObject->Lock(0, 0, &pVoid, 0);
+	memcpy(pVoid, isObject, sizeof(isObject));
+	ibObject->Unlock();
 }
 
-void drawTriangle()
+HRESULT SetTransform(IDirect3DDevice9* pDevice, D3DTRANSFORMSTATETYPE State, DirectX::XMMATRIX matrix)
 {
-	static float xOffset = 0.0f;
-	static float direction = -1.0f;
+	DirectX::XMFLOAT4X4 mat;
+	DirectX::XMStoreFloat4x4(&mat, matrix);
+	return pDevice->SetTransform(State, reinterpret_cast<D3DMATRIX*>(&mat));
+}
 
-	xOffset += direction;
-	if (direction < 0 && xOffset < -100.0f) direction = 1.0f;
-	else if (direction > 0 && xOffset > 100.0f) direction = -1.0f;
+void renderFloor()
+{
+	SetTransform(g_pDevice, D3DTS_WORLD, DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.0f));
+	g_pDevice->SetStreamSource(0, floorVertexBuffer, 0, sizeof(Vertex));
+	g_pDevice->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 2);
+}
 
-	Vertex vsTriangle[] =
-	{
-		{320.0f + xOffset,  50.0f, 1.0f, 1.0f, D3DCOLOR_XRGB(111, 111, 255) },
-		{520.0f + xOffset, 400.0f, 1.0f, 1.0f, D3DCOLOR_XRGB(111, 255, 111) },
-		{120.0f + xOffset, 400.0f, 1.0f, 1.0f, D3DCOLOR_XRGB(255, 111, 111) },
-	};
 
-	VOID* pVoid;
-	vbTriangle->Lock(0, 0, &pVoid, 0);
-	memcpy(pVoid, vsTriangle, sizeof(vsTriangle));
-	vbTriangle->Unlock();
+void renderObject(DirectX::XMVECTOR position)
+{
+	auto pos = DirectX::XMMatrixTranslation(
+		DirectX::XMVectorGetX(position),
+		DirectX::XMVectorGetY(position),
+		DirectX::XMVectorGetZ(position));
 
-	g_pDevice->SetFVF(CUSTOMFVF);
-	g_pDevice->SetStreamSource(0, vbTriangle, 0, sizeof(Vertex));
-	g_pDevice->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
+	static float rotation = 0.0f;
+	rotation += 0.05f;
+
+	auto t = DirectX::XMMatrixRotationY(rotation) * pos;
+	SetTransform(g_pDevice, D3DTS_WORLD, t);
+
+	g_pDevice->SetStreamSource(0, vbObject, 0, sizeof(Vertex));
+	g_pDevice->SetIndices(ibObject);
+	g_pDevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, sizeof(vsObject) / sizeof(Vertex), 0, 12);
 }
 
 void initD3D(HWND hWnd)
@@ -54,17 +122,58 @@ void initD3D(HWND hWnd)
 	d3dpp.Windowed = TRUE;
 	d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	d3dpp.hDeviceWindow = hWnd;
+	d3dpp.BackBufferWidth = gResolution.first;
+	d3dpp.BackBufferHeight = gResolution.second;
+	d3dpp.EnableAutoDepthStencil = TRUE;
+	d3dpp.AutoDepthStencilFormat = D3DFMT_D16;
 	g_pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &g_pDevice);
+
+	g_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
+	g_pDevice->SetRenderState(D3DRS_ZENABLE, TRUE);
+	g_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
 
 	initGraphics();
 }
 
+void setCamera(DirectX::XMVECTOR lookAt)
+{
+	SetTransform(g_pDevice, D3DTS_VIEW, DirectX::XMMatrixLookAtLH(
+		DirectX::XMVectorSet(0.0f, 5.0f, 10.0f, 1.0f),
+		lookAt,
+		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f)
+	));
+
+	SetTransform(g_pDevice, D3DTS_PROJECTION, DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(110), aspectRatio(), 1.0f, 100.0f));
+}
+
 void render()
 {
+	g_pDevice->Clear(0, NULL, D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0, 40, 100), 1.0f, 0);
 	g_pDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 40, 100), 1.0f, 0);
 	g_pDevice->BeginScene();
 
-	drawTriangle();
+	g_pDevice->SetFVF(CUSTOMFVF);
+
+	static auto objectPosition = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
+	static auto objectPosition2 = DirectX::XMVectorSet(2.0f, 0.0f, -5.0f, 0.0f);
+
+	renderFloor();
+
+	objectPosition = DirectX::XMVectorSet(
+		DirectX::XMVectorGetX(objectPosition),
+		DirectX::XMVectorGetY(objectPosition) + 0.01f,
+		DirectX::XMVectorGetZ(objectPosition),
+		DirectX::XMVectorGetW(objectPosition));
+	renderObject(objectPosition);
+
+	objectPosition2 = DirectX::XMVectorSet(
+		DirectX::XMVectorGetX(objectPosition2),
+		DirectX::XMVectorGetY(objectPosition2) + 0.03f,
+		DirectX::XMVectorGetZ(objectPosition2),
+		DirectX::XMVectorGetW(objectPosition2));
+	renderObject(objectPosition2);
+
+	setCamera(objectPosition);
 
 	g_pDevice->EndScene();
 	g_pDevice->Present(NULL, NULL, NULL, NULL);
@@ -72,7 +181,9 @@ void render()
 
 void cleanupD3D()
 {
-	vbTriangle->Release();
+	floorVertexBuffer->Release();
+	vbObject->Release();
+	ibObject->Release();
 	g_pDevice->Release();
 	g_pD3D->Release();
 }
