@@ -5,6 +5,8 @@
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
+std::pair<int, int> gResolution = { 1280, 720 };
+
 LPDIRECT3D9 g_pD3D;
 LPDIRECT3DDEVICE9 g_pDevice;
 
@@ -46,7 +48,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	wc.lpszClassName = L"WindowClass1";
 	RegisterClassEx(&wc);
 
-	HWND hWnd = CreateWindowEx(NULL, wc.lpszClassName, L"d3d9-example-target", WS_OVERLAPPEDWINDOW, 300, 300, 500, 400, NULL, NULL, hInstance, NULL);
+	HWND hWnd = CreateWindowEx(NULL, wc.lpszClassName, L"d3d9-example-target", WS_OVERLAPPEDWINDOW, 1200, 300, gResolution.first, gResolution.second, NULL, NULL, hInstance, NULL);
 	ShowWindow(hWnd, nCmdShow);
 
 	initD3D(hWnd);
