@@ -10,6 +10,42 @@ std::pair<int, int> gResolution = { 1280, 720 };
 LPDIRECT3D9 g_pD3D;
 LPDIRECT3DDEVICE9 g_pDevice;
 
+#define CUSTOMFVF (D3DFVF_XYZRHW | D3DFVF_DIFFUSE)
+struct Vertex { FLOAT x, y, z, rhw; DWORD color; };
+
+LPDIRECT3DVERTEXBUFFER9 vbTriangle;
+
+void initGraphics()
+{
+	g_pDevice->CreateVertexBuffer(sizeof(Vertex) * 3, 0, CUSTOMFVF, D3DPOOL_MANAGED, &vbTriangle, NULL);
+}
+
+void drawTriangle()
+{
+	static float xOffset = 0.0f;
+	static float direction = -1.0f;
+
+	xOffset += direction;
+	if (direction < 0 && xOffset < -100.0f) direction = 1.0f;
+	else if (direction > 0 && xOffset > 100.0f) direction = -1.0f;
+
+	Vertex vsTriangle[] =
+	{
+		{320.0f + xOffset,  50.0f, 1.0f, 1.0f, D3DCOLOR_XRGB(111, 111, 255) },
+		{520.0f + xOffset, 400.0f, 1.0f, 1.0f, D3DCOLOR_XRGB(111, 255, 111) },
+		{120.0f + xOffset, 400.0f, 1.0f, 1.0f, D3DCOLOR_XRGB(255, 111, 111) },
+	};
+
+	VOID* pVoid;
+	vbTriangle->Lock(0, 0, &pVoid, 0);
+	memcpy(pVoid, vsTriangle, sizeof(vsTriangle));
+	vbTriangle->Unlock();
+
+	g_pDevice->SetFVF(CUSTOMFVF);
+	g_pDevice->SetStreamSource(0, vbTriangle, 0, sizeof(Vertex));
+	g_pDevice->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 1);
+}
+
 void initD3D(HWND hWnd)
 {
 	g_pD3D = Direct3DCreate9(D3D_SDK_VERSION);
@@ -19,18 +55,24 @@ void initD3D(HWND hWnd)
 	d3dpp.SwapEffect = D3DSWAPEFFECT_DISCARD;
 	d3dpp.hDeviceWindow = hWnd;
 	g_pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &g_pDevice);
+
+	initGraphics();
 }
 
 void render()
 {
 	g_pDevice->Clear(0, NULL, D3DCLEAR_TARGET, D3DCOLOR_XRGB(0, 40, 100), 1.0f, 0);
 	g_pDevice->BeginScene();
+
+	drawTriangle();
+
 	g_pDevice->EndScene();
 	g_pDevice->Present(NULL, NULL, NULL, NULL);
 }
 
 void cleanupD3D()
 {
+	vbTriangle->Release();
 	g_pDevice->Release();
 	g_pD3D->Release();
 }
