@@ -258,8 +258,16 @@ void initD3D(HWND hWnd)
 
 void setCamera(DirectX::XMFLOAT3 lookAt)
 {
+	float cameraHeight = 25.0f;
+	static auto cameraPosition = DirectX::XMVectorSet(0.0f, cameraHeight, -50.0f, 1.0f);
+	float distance = 25.0f;
+
+	auto followVector = DirectX::XMVectorSet(lookAt.x, cameraHeight, lookAt.z, 0.0f);
+	auto clampedDiff = DirectX::XMVector3ClampLength(DirectX::XMVectorSubtract(cameraPosition, followVector), 0.0f, distance);
+	cameraPosition = DirectX::XMVectorAdd(followVector, clampedDiff);
+
 	SetTransform(g_pDevice, D3DTS_VIEW, DirectX::XMMatrixLookAtLH(
-		DirectX::XMVectorSet(0.0f, 25.0f, -50.0f, 1.0f),
+		cameraPosition,
 		DirectX::XMVectorSet(lookAt.x, lookAt.y, lookAt.z, 1.0f),
 		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f)
 	));
