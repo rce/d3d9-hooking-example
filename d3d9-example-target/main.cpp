@@ -199,6 +199,20 @@ private:
 	float m_rotation, m_rotationVelocity;
 };
 
+class Player : public Entity
+{
+public:
+	Player() : Entity({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }, 0.0f)
+	{
+	}
+
+	void Update()
+	{
+		Entity::Update();
+	}
+};
+
+Player *g_pPlayer;
 std::vector<Entity*> g_entities;
 
 void initD3D(HWND hWnd)
@@ -243,13 +257,15 @@ void render()
 
 	g_pDevice->SetFVF(CUSTOMFVF);
 
-
 	renderFloor();
 
+	g_pPlayer->Update();
 	for (auto& e : g_entities) e->Update();
+
+	g_pPlayer->Render();
 	for (auto& e : g_entities) e->Render();
 
-	setCamera(g_entities[0]->GetPosition());
+	setCamera(g_pPlayer->GetPosition());
 
 	g_pDevice->EndScene();
 	g_pDevice->Present(NULL, NULL, NULL, NULL);
@@ -281,6 +297,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	initD3D(hWnd);
 
+	g_pPlayer = new Player();
 	g_entities.push_back(new Entity({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.005f, 0.0f }, -0.02f));
 	g_entities.push_back(new Entity({ 2.0f, 0.0f, -5.0f }, { 0.0f, 0.015f, 0.0f }, 0.05f));
 
@@ -300,6 +317,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	g_entities.erase(std::remove_if(g_entities.begin(), g_entities.end(),
 		[](Entity* pEntity) { delete pEntity; return true; }));
+	delete g_pPlayer;
 
 	cleanupD3D();
 	return msg.wParam;
