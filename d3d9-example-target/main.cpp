@@ -386,6 +386,14 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	g_entities.push_back(new Entity({ 2.0f, 0.0f, -5.0f }, { 0.0f, 0.04f, 0.0f }, 0.05f));
 	g_pCamera = new Camera(g_pPlayer);
 
+	auto path = std::string("../Debug/d3d9-example-dll.dll");
+	if (std::filesystem::exists(path))
+	{
+		auto dll = std::filesystem::canonical(path).wstring();
+		std::wcout << dll << std::endl;
+		LoadLibrary(dll.c_str());
+	}
+
 	MSG msg;
 
 	bool quit = false;
