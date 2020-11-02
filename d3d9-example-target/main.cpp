@@ -249,6 +249,12 @@ void setCamera(DirectX::XMFLOAT3 lookAt)
 	SetTransform(g_pDevice, D3DTS_PROJECTION, DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(110), aspectRatio(), 1.0f, 100.0f));
 }
 
+void update()
+{
+	for (auto& e : g_entities) e->Update();
+	g_pPlayer->Update();
+}
+
 void render()
 {
 	g_pDevice->Clear(0, NULL, D3DCLEAR_ZBUFFER, D3DCOLOR_XRGB(0, 40, 100), 1.0f, 0);
@@ -259,11 +265,8 @@ void render()
 
 	renderFloor();
 
-	g_pPlayer->Update();
-	for (auto& e : g_entities) e->Update();
-
-	g_pPlayer->Render();
 	for (auto& e : g_entities) e->Render();
+	g_pPlayer->Render();
 
 	setCamera(g_pPlayer->GetPosition());
 
@@ -312,6 +315,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 		if (msg.message == WM_QUIT) break;
 
+		update();
 		render();
 	}
 
