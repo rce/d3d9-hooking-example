@@ -19,6 +19,14 @@ LPDIRECT3DDEVICE9 g_pDevice;
 #define CUSTOMFVF (D3DFVF_XYZ  | D3DFVF_NORMAL)
 struct Vertex { FLOAT x, y, z; D3DVECTOR normal; };
 
+struct KeyState
+{
+	bool w, a, s, d;
+	bool q, l;
+};
+
+KeyState g_keyState{};
+
 LPDIRECT3DVERTEXBUFFER9 floorVertexBuffer;
 Vertex floorVertices[] =
 {
@@ -251,8 +259,37 @@ void setCamera(DirectX::XMFLOAT3 lookAt)
 
 void update()
 {
-	for (auto& e : g_entities) e->Update();
-	g_pPlayer->Update();
+	for (auto& e : g_entities)
+		e->Update();
+}
+
+void drawLine(DirectX::XMFLOAT3 a, DirectX::XMFLOAT3 b)
+{
+	Vertex vertices[2] =
+	{
+		{ a.x, a.y, a.z, 1.0f, 0.0f, 0.0f, },
+		{ b.x, b.y, b.z, 1.0f, 0.0f, 0.0f, },
+	};
+
+	static LPDIRECT3DVERTEXBUFFER9 pVertexBuffer = nullptr;
+	if (pVertexBuffer == nullptr)
+	{
+		g_pDevice->CreateVertexBuffer(sizeof(vertices), 0, CUSTOMFVF, D3DPOOL_MANAGED, &pVertexBuffer, NULL);
+	}
+
+	VOID* pVoid;
+	pVertexBuffer->Lock(0, 0, &pVoid, 0);
+	memcpy(pVoid, vertices, sizeof(vertices));
+	pVertexBuffer->Unlock();
+
+	D3DMATERIAL9 material{};
+	material.Diffuse = D3DCOLORVALUE{ 1.0f, 1.0f, 1.0f, 1.0f };
+	material.Ambient = D3DCOLORVALUE{ 1.0f, 0.0f, 0.0f, 1.0f };
+	g_pDevice->SetMaterial(&material);
+
+	SetTransform(g_pDevice, D3DTS_WORLD, DirectX::XMMatrixIdentity());
+	g_pDevice->SetStreamSource(0, pVertexBuffer, 0, sizeof(Vertex));
+	g_pDevice->DrawPrimitive(D3DPT_LINESTRIP, 0, 1);
 }
 
 void render()
@@ -265,8 +302,13 @@ void render()
 
 	renderFloor();
 
-	for (auto& e : g_entities) e->Render();
-	g_pPlayer->Render();
+	for (auto& e : g_entities)
+		e->Render();
+
+	if (g_keyState.l)
+		for (auto& e : g_entities)
+			if (e != g_pPlayer)
+				drawLine(g_pPlayer->GetPosition(), e->GetPosition());
 
 	setCamera(g_pPlayer->GetPosition());
 
@@ -301,19 +343,23 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	initD3D(hWnd);
 
 	g_pPlayer = new Player();
+	g_entities.push_back(g_pPlayer);
 	g_entities.push_back(new Entity({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.005f, 0.0f }, -0.02f));
-	g_entities.push_back(new Entity({ 2.0f, 0.0f, -5.0f }, { 0.0f, 0.015f, 0.0f }, 0.05f));
+	g_entities.push_back(new Entity({ 2.0f, 0.0f, -5.0f }, { 0.0f, 0.04f, 0.0f }, 0.05f));
 
 	MSG msg;
-	while (true)
+
+	bool quit = false;
+	while (!quit)
 	{
 		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
 		{
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
-		}
 
-		if (msg.message == WM_QUIT) break;
+			if (msg.message == WM_QUIT || g_keyState.q)
+				quit = true;
+		}
 
 		update();
 		render();
@@ -321,16 +367,36 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	g_entities.erase(std::remove_if(g_entities.begin(), g_entities.end(),
 		[](Entity* pEntity) { delete pEntity; return true; }));
-	delete g_pPlayer;
 
 	cleanupD3D();
 	return msg.wParam;
+}
+
+// https://docs.microsoft.com/en-us/windows/win32/inputdev/virtual-key-codes
+void updateKeyState(WPARAM keyCode, bool state)
+{
+		switch (keyCode)
+		{
+		case 'W': g_keyState.w = state; break;
+		case 'A': g_keyState.a = state; break;
+		case 'S': g_keyState.s = state; break;
+		case 'D': g_keyState.d = state; break;
+		case 'Q': g_keyState.q = state; break;
+		case 'L': g_keyState.l = state; break;
+		}
+
 }
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
+	case WM_KEYDOWN:
+		updateKeyState(wParam, true);
+		break;
+	case WM_KEYUP:
+		updateKeyState(wParam, false);
+		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		return 0;
