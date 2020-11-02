@@ -19,36 +19,6 @@ LPDIRECT3DDEVICE9 g_pDevice;
 #define CUSTOMFVF (D3DFVF_XYZ | D3DFVF_DIFFUSE)
 struct Vertex { FLOAT x, y, z; DWORD color; };
 
-LPDIRECT3DVERTEXBUFFER9 vbObject;
-Vertex vsObject[] =
-{
-	{ -3.0f, 3.0f, -3.0f, D3DCOLOR_XRGB(111, 111, 255) },
-	{ 3.0f, 3.0f, -3.0f, D3DCOLOR_XRGB(111, 255, 111) },
-	{ -3.0f, -3.0f, -3.0f, D3DCOLOR_XRGB(255, 111, 111) },
-	{ 3.0f, -3.0f, -3.0f, D3DCOLOR_XRGB(111, 255, 255) },
-	{ -3.0f, 3.0f, 3.0f, D3DCOLOR_XRGB(111, 111, 255) },
-	{ 3.0f, 3.0f, 3.0f, D3DCOLOR_XRGB(255, 111, 111) },
-	{ -3.0f, -3.0f, 3.0f, D3DCOLOR_XRGB(111, 255, 111) },
-	{ 3.0f, -3.0f, 3.0f, D3DCOLOR_XRGB(111, 255, 255) },
-};
-
-LPDIRECT3DINDEXBUFFER9 ibObject;
-short isObject[] =
-{
-    0, 1, 2,    // side 1
-    2, 1, 3,
-    4, 0, 6,    // side 2
-    6, 0, 2,
-    7, 5, 6,    // side 3
-    6, 5, 4,
-    3, 1, 7,    // side 4
-    7, 1, 5,
-    4, 5, 0,    // side 5
-    0, 5, 1,
-    3, 7, 2,    // side 6
-    2, 7, 6,
-};
-
 LPDIRECT3DVERTEXBUFFER9 floorVertexBuffer;
 Vertex floorVertices[] =
 {
@@ -61,6 +31,72 @@ Vertex floorVertices[] =
 	{  50.0f, 0.0f, -50.0f, D3DCOLOR_XRGB(55, 55, 55) },
 };
 
+class Cube
+{
+public:
+	Cube()
+	{
+		VOID* pVoid;
+
+		g_pDevice->CreateVertexBuffer(sizeof(m_vertices), 0, CUSTOMFVF, D3DPOOL_MANAGED, &m_pVertexBuffer, NULL);
+		m_pVertexBuffer->Lock(0, 0, &pVoid, 0);
+		memcpy(pVoid, m_vertices, sizeof(m_vertices));
+		m_pVertexBuffer->Unlock();
+
+		g_pDevice->CreateIndexBuffer(sizeof(m_indices), 0, D3DFMT_INDEX16, D3DPOOL_MANAGED, &m_pIndexBuffer, NULL);
+		m_pIndexBuffer->Lock(0, 0, &pVoid, 0);
+		memcpy(pVoid, m_indices, sizeof(m_indices));
+		m_pIndexBuffer->Unlock();
+	}
+
+	~Cube()
+	{
+		m_pVertexBuffer->Release();
+		m_pIndexBuffer->Release();
+	}
+
+	void Render()
+	{
+		g_pDevice->SetStreamSource(0, m_pVertexBuffer, 0, sizeof(Vertex));
+		g_pDevice->SetIndices(m_pIndexBuffer);
+		g_pDevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, sizeof(m_vertices) / sizeof(Vertex), 0, 12);
+	}
+
+private:
+	LPDIRECT3DVERTEXBUFFER9 m_pVertexBuffer;
+	LPDIRECT3DINDEXBUFFER9 m_pIndexBuffer;
+
+	Vertex m_vertices[12] =
+	{
+		{ -3.0f, 3.0f, -3.0f, D3DCOLOR_XRGB(111, 111, 255) },
+		{ 3.0f, 3.0f, -3.0f, D3DCOLOR_XRGB(111, 255, 111) },
+		{ -3.0f, -3.0f, -3.0f, D3DCOLOR_XRGB(255, 111, 111) },
+		{ 3.0f, -3.0f, -3.0f, D3DCOLOR_XRGB(111, 255, 255) },
+		{ -3.0f, 3.0f, 3.0f, D3DCOLOR_XRGB(111, 111, 255) },
+		{ 3.0f, 3.0f, 3.0f, D3DCOLOR_XRGB(255, 111, 111) },
+		{ -3.0f, -3.0f, 3.0f, D3DCOLOR_XRGB(111, 255, 111) },
+		{ 3.0f, -3.0f, 3.0f, D3DCOLOR_XRGB(111, 255, 255) },
+	};
+
+	short m_indices[36] =
+	{
+		0, 1, 2,    // side 1
+		2, 1, 3,
+		4, 0, 6,    // side 2
+		6, 0, 2,
+		7, 5, 6,    // side 3
+		6, 5, 4,
+		3, 1, 7,    // side 4
+		7, 1, 5,
+		4, 5, 0,    // side 5
+		0, 5, 1,
+		3, 7, 2,    // side 6
+		2, 7, 6,
+	};
+};
+
+Cube* g_pCube = nullptr;
+
 void initGraphics()
 {
 	VOID* pVoid;
@@ -70,15 +106,7 @@ void initGraphics()
 	memcpy(pVoid, floorVertices, sizeof(floorVertices));
 	floorVertexBuffer->Unlock();
 
-	g_pDevice->CreateVertexBuffer(sizeof(vsObject), 0, CUSTOMFVF, D3DPOOL_MANAGED, &vbObject, NULL);
-	vbObject->Lock(0, 0, &pVoid, 0);
-	memcpy(pVoid, vsObject, sizeof(vsObject));
-	vbObject->Unlock();
-
-	g_pDevice->CreateIndexBuffer(sizeof(isObject), 0, D3DFMT_INDEX16, D3DPOOL_MANAGED, &ibObject, NULL);
-	ibObject->Lock(0, 0, &pVoid, 0);
-	memcpy(pVoid, isObject, sizeof(isObject));
-	ibObject->Unlock();
+	g_pCube = new Cube();
 }
 
 HRESULT SetTransform(IDirect3DDevice9* pDevice, D3DTRANSFORMSTATETYPE State, DirectX::XMMATRIX matrix)
@@ -109,9 +137,7 @@ void renderObject(DirectX::XMVECTOR position)
 	auto t = DirectX::XMMatrixRotationY(rotation) * pos;
 	SetTransform(g_pDevice, D3DTS_WORLD, t);
 
-	g_pDevice->SetStreamSource(0, vbObject, 0, sizeof(Vertex));
-	g_pDevice->SetIndices(ibObject);
-	g_pDevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, sizeof(vsObject) / sizeof(Vertex), 0, 12);
+	g_pCube->Render();
 }
 
 void initD3D(HWND hWnd)
@@ -181,9 +207,8 @@ void render()
 
 void cleanupD3D()
 {
+	delete g_pCube;
 	floorVertexBuffer->Release();
-	vbObject->Release();
-	ibObject->Release();
 	g_pDevice->Release();
 	g_pD3D->Release();
 }
