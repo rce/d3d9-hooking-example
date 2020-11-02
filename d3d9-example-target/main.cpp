@@ -269,7 +269,7 @@ public:
 		auto cameraPosition = DirectX::XMLoadFloat3(&m_position);
 
 		auto followVector = DirectX::XMVectorSetY(lookAt, m_height);
-		auto clampedDiff = DirectX::XMVector3ClampLength(DirectX::XMVectorSubtract(cameraPosition, followVector), 0.0f, m_distance);
+		auto clampedDiff = DirectX::XMVector3ClampLength(DirectX::XMVectorSubtract(cameraPosition, followVector), m_minDistance, m_maxDistance);
 		DirectX::XMStoreFloat3(&m_position, DirectX::XMVectorAdd(followVector, clampedDiff));
 	}
 
@@ -287,7 +287,7 @@ public:
 private:
 	DirectX::XMFLOAT3 m_position;
 	Entity* m_pLookAtEntity;
-	float m_distance = 25.0f;
+	float m_minDistance = 15.0f, m_maxDistance = 25.0f;
 	float m_height = 25.0f;
 };
 
