@@ -256,29 +256,49 @@ void initD3D(HWND hWnd)
 	initLight();
 }
 
-void setCamera(DirectX::XMFLOAT3 lookAt)
+class Camera
 {
-	float cameraHeight = 25.0f;
-	static auto cameraPosition = DirectX::XMVectorSet(0.0f, cameraHeight, -50.0f, 1.0f);
-	float distance = 25.0f;
+public:
+	Camera(Entity *pLookAtEntity) : m_pLookAtEntity(pLookAtEntity), m_position({ 0.0f, m_height, -250.0f})
+	{
+	}
 
-	auto followVector = DirectX::XMVectorSet(lookAt.x, cameraHeight, lookAt.z, 0.0f);
-	auto clampedDiff = DirectX::XMVector3ClampLength(DirectX::XMVectorSubtract(cameraPosition, followVector), 0.0f, distance);
-	cameraPosition = DirectX::XMVectorAdd(followVector, clampedDiff);
+	void Update()
+	{
+		auto lookAt = DirectX::XMLoadFloat3(&m_pLookAtEntity->GetPosition());
+		auto cameraPosition = DirectX::XMLoadFloat3(&m_position);
 
-	SetTransform(g_pDevice, D3DTS_VIEW, DirectX::XMMatrixLookAtLH(
-		cameraPosition,
-		DirectX::XMVectorSet(lookAt.x, lookAt.y, lookAt.z, 1.0f),
-		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f)
-	));
+		auto followVector = DirectX::XMVectorSetY(lookAt, m_height);
+		auto clampedDiff = DirectX::XMVector3ClampLength(DirectX::XMVectorSubtract(cameraPosition, followVector), 0.0f, m_distance);
+		DirectX::XMStoreFloat3(&m_position, DirectX::XMVectorAdd(followVector, clampedDiff));
+	}
 
-	SetTransform(g_pDevice, D3DTS_PROJECTION, DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(75), aspectRatio(), 1.0f, 100.0f));
-}
+	void Render()
+	{
+		SetTransform(g_pDevice, D3DTS_VIEW, DirectX::XMMatrixLookAtLH(
+			DirectX::XMLoadFloat3(&m_position),
+			DirectX::XMLoadFloat3(&m_pLookAtEntity->GetPosition()),
+			DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f)
+		));
+
+		SetTransform(g_pDevice, D3DTS_PROJECTION, DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(75), aspectRatio(), 1.0f, 100.0f));
+	}
+
+private:
+	DirectX::XMFLOAT3 m_position;
+	Entity* m_pLookAtEntity;
+	float m_distance = 25.0f;
+	float m_height = 25.0f;
+};
+
+Camera* g_pCamera;
 
 void update()
 {
 	for (auto& e : g_entities)
 		e->Update();
+
+	g_pCamera->Update();
 }
 
 void drawLine(DirectX::XMFLOAT3 a, DirectX::XMFLOAT3 b)
@@ -328,7 +348,7 @@ void render()
 			if (e != g_pPlayer)
 				drawLine(g_pPlayer->GetPosition(), e->GetPosition());
 
-	setCamera(g_pPlayer->GetPosition());
+	g_pCamera->Render();
 
 	g_pDevice->EndScene();
 	g_pDevice->Present(NULL, NULL, NULL, NULL);
@@ -364,6 +384,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	g_entities.push_back(g_pPlayer);
 	g_entities.push_back(new Entity({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.005f, 0.0f }, -0.02f));
 	g_entities.push_back(new Entity({ 2.0f, 0.0f, -5.0f }, { 0.0f, 0.04f, 0.0f }, 0.05f));
+	g_pCamera = new Camera(g_pPlayer);
 
 	MSG msg;
 
@@ -383,8 +404,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 		render();
 	}
 
+	g_pPlayer = nullptr;
 	g_entities.erase(std::remove_if(g_entities.begin(), g_entities.end(),
 		[](Entity* pEntity) { delete pEntity; return true; }));
+	delete g_pCamera;
 
 	cleanupD3D();
 	return msg.wParam;
