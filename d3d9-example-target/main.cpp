@@ -170,13 +170,14 @@ void renderFloor()
 class Entity
 {
 public:
-	Entity(DirectX::XMFLOAT3 position, DirectX::XMFLOAT3 velocity, float rotation) : m_pModel(g_pCube), m_position(position), m_velocity(velocity), m_rotation(rotation)
+	Entity(DirectX::XMFLOAT3 position, DirectX::XMFLOAT3 velocity, float rotationVelocity) : m_pModel(g_pCube), m_position(position), m_velocity(velocity), m_rotation(0.0f), m_rotationVelocity(rotationVelocity)
 	{
 	}
 
 	void Update()
 	{
 		DirectX::XMStoreFloat3(&m_position, DirectX::XMVectorAdd(DirectX::XMLoadFloat3(&m_position), DirectX::XMLoadFloat3(&m_velocity)));
+		m_rotation += m_rotationVelocity;
 	}
 
 	void Render()
@@ -195,7 +196,7 @@ private:
 	Cube* m_pModel;
 	DirectX::XMFLOAT3 m_position;
 	DirectX::XMFLOAT3 m_velocity;
-	float m_rotation;
+	float m_rotation, m_rotationVelocity;
 };
 
 std::vector<Entity*> g_entities;
@@ -280,8 +281,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	initD3D(hWnd);
 
-	g_entities.push_back(new Entity({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.01f, 0.0f }, 0.05f));
-	g_entities.push_back(new Entity({ 2.0f, 0.0f, -5.0f }, { 0.0f, 0.03f, 0.0f }, 0.05f));
+	g_entities.push_back(new Entity({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.005f, 0.0f }, -0.02f));
+	g_entities.push_back(new Entity({ 2.0f, 0.0f, -5.0f }, { 0.0f, 0.015f, 0.0f }, 0.05f));
 
 	MSG msg;
 	while (true)
