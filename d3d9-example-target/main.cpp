@@ -16,19 +16,19 @@ float aspectRatio() {
 LPDIRECT3D9 g_pD3D;
 LPDIRECT3DDEVICE9 g_pDevice;
 
-#define CUSTOMFVF (D3DFVF_XYZ | D3DFVF_DIFFUSE)
-struct Vertex { FLOAT x, y, z; DWORD color; };
+#define CUSTOMFVF (D3DFVF_XYZ  | D3DFVF_NORMAL)
+struct Vertex { FLOAT x, y, z; D3DVECTOR normal; };
 
 LPDIRECT3DVERTEXBUFFER9 floorVertexBuffer;
 Vertex floorVertices[] =
 {
-	{ -50.0f, 0.0f, -50.0f, D3DCOLOR_XRGB(55, 55, 55) },
-	{ -50.0f, 0.0f,  50.0f, D3DCOLOR_XRGB(55, 55, 55) },
-	{  50.0f, 0.0f, -50.0f, D3DCOLOR_XRGB(55, 55, 55) },
+	{ -50.0f, 0.0f, -50.0f, 0.0f, 1.0f, 0.0f },
+	{ -50.0f, 0.0f,  50.0f, 0.0f, 1.0f, 0.0f },
+	{  50.0f, 0.0f, -50.0f, 0.0f, 1.0f, 0.0f },
 
-	{ -50.0f, 0.0f,  50.0f, D3DCOLOR_XRGB(55, 55, 55) },
-	{  50.0f, 0.0f,  50.0f, D3DCOLOR_XRGB(55, 55, 55) },
-	{  50.0f, 0.0f, -50.0f, D3DCOLOR_XRGB(55, 55, 55) },
+	{ -50.0f, 0.0f,  50.0f, 0.0f, 1.0f, 0.0f },
+	{  50.0f, 0.0f,  50.0f, 0.0f, 1.0f, 0.0f },
+	{  50.0f, 0.0f, -50.0f, 0.0f, 1.0f, 0.0f },
 };
 
 class Cube
@@ -57,6 +57,11 @@ public:
 
 	void Render()
 	{
+		D3DMATERIAL9 material{};
+		material.Diffuse = D3DCOLORVALUE{ 1.0f, 0.0f, 0.0f, 1.0f };
+		material.Ambient = D3DCOLORVALUE{ 1.0f, 0.0f, 0.0f, 1.0f };
+		g_pDevice->SetMaterial(&material);
+
 		g_pDevice->SetStreamSource(0, m_pVertexBuffer, 0, sizeof(Vertex));
 		g_pDevice->SetIndices(m_pIndexBuffer);
 		g_pDevice->DrawIndexedPrimitive(D3DPT_TRIANGLELIST, 0, 0, sizeof(m_vertices) / sizeof(Vertex), 0, 12);
@@ -66,32 +71,55 @@ private:
 	LPDIRECT3DVERTEXBUFFER9 m_pVertexBuffer;
 	LPDIRECT3DINDEXBUFFER9 m_pIndexBuffer;
 
-	Vertex m_vertices[12] =
+	Vertex m_vertices[24] =
 	{
-		{ -3.0f, 3.0f, -3.0f, D3DCOLOR_XRGB(111, 111, 255) },
-		{ 3.0f, 3.0f, -3.0f, D3DCOLOR_XRGB(111, 255, 111) },
-		{ -3.0f, -3.0f, -3.0f, D3DCOLOR_XRGB(255, 111, 111) },
-		{ 3.0f, -3.0f, -3.0f, D3DCOLOR_XRGB(111, 255, 255) },
-		{ -3.0f, 3.0f, 3.0f, D3DCOLOR_XRGB(111, 111, 255) },
-		{ 3.0f, 3.0f, 3.0f, D3DCOLOR_XRGB(255, 111, 111) },
-		{ -3.0f, -3.0f, 3.0f, D3DCOLOR_XRGB(111, 255, 111) },
-		{ 3.0f, -3.0f, 3.0f, D3DCOLOR_XRGB(111, 255, 255) },
+		{ -3.0f, -3.0f, 3.0f, 0.0f, 0.0f, 1.0f, },    // side 1
+		{ 3.0f, -3.0f, 3.0f, 0.0f, 0.0f, 1.0f, },
+		{ -3.0f, 3.0f, 3.0f, 0.0f, 0.0f, 1.0f, },
+		{ 3.0f, 3.0f, 3.0f, 0.0f, 0.0f, 1.0f, },
+
+		{ -3.0f, -3.0f, -3.0f, 0.0f, 0.0f, -1.0f, },    // side 2
+		{ -3.0f, 3.0f, -3.0f, 0.0f, 0.0f, -1.0f, },
+		{ 3.0f, -3.0f, -3.0f, 0.0f, 0.0f, -1.0f, },
+		{ 3.0f, 3.0f, -3.0f, 0.0f, 0.0f, -1.0f, },
+
+		{ -3.0f, 3.0f, -3.0f, 0.0f, 1.0f, 0.0f, },    // side 3
+		{ -3.0f, 3.0f, 3.0f, 0.0f, 1.0f, 0.0f, },
+		{ 3.0f, 3.0f, -3.0f, 0.0f, 1.0f, 0.0f, },
+		{ 3.0f, 3.0f, 3.0f, 0.0f, 1.0f, 0.0f, },
+
+		{ -3.0f, -3.0f, -3.0f, 0.0f, -1.0f, 0.0f, },    // side 4
+		{ 3.0f, -3.0f, -3.0f, 0.0f, -1.0f, 0.0f, },
+		{ -3.0f, -3.0f, 3.0f, 0.0f, -1.0f, 0.0f, },
+		{ 3.0f, -3.0f, 3.0f, 0.0f, -1.0f, 0.0f, },
+
+		{ 3.0f, -3.0f, -3.0f, 1.0f, 0.0f, 0.0f, },    // side 5
+		{ 3.0f, 3.0f, -3.0f, 1.0f, 0.0f, 0.0f, },
+		{ 3.0f, -3.0f, 3.0f, 1.0f, 0.0f, 0.0f, },
+		{ 3.0f, 3.0f, 3.0f, 1.0f, 0.0f, 0.0f, },
+
+		{ -3.0f, -3.0f, -3.0f, -1.0f, 0.0f, 0.0f, },    // side 6
+		{ -3.0f, -3.0f, 3.0f, -1.0f, 0.0f, 0.0f, },
+		{ -3.0f, 3.0f, -3.0f, -1.0f, 0.0f, 0.0f, },
+		{ -3.0f, 3.0f, 3.0f, -1.0f, 0.0f, 0.0f, },
+
 	};
 
 	short m_indices[36] =
 	{
 		0, 1, 2,    // side 1
 		2, 1, 3,
-		4, 0, 6,    // side 2
-		6, 0, 2,
-		7, 5, 6,    // side 3
-		6, 5, 4,
-		3, 1, 7,    // side 4
-		7, 1, 5,
-		4, 5, 0,    // side 5
-		0, 5, 1,
-		3, 7, 2,    // side 6
-		2, 7, 6,
+		4, 5, 6,    // side 2
+		6, 5, 7,
+		8, 9, 10,    // side 3
+		10, 9, 11,
+		12, 13, 14,    // side 4
+		14, 13, 15,
+		16, 17, 18,    // side 5
+		18, 17, 19,
+		20, 21, 22,    // side 6
+		22, 21, 23,
+
 	};
 };
 
@@ -109,6 +137,17 @@ void initGraphics()
 	g_pCube = new Cube();
 }
 
+void initLight()
+{
+	D3DLIGHT9 light{};
+	light.Type = D3DLIGHT_DIRECTIONAL;
+	light.Diffuse = D3DCOLORVALUE{ 0.5f, 0.5f, 0.5f, 1.0f };
+	light.Direction = D3DVECTOR{ -1.0f, -0.3f, -1.0f };
+
+	g_pDevice->SetLight(0, &light);
+	g_pDevice->LightEnable(0, TRUE);
+}
+
 HRESULT SetTransform(IDirect3DDevice9* pDevice, D3DTRANSFORMSTATETYPE State, DirectX::XMMATRIX matrix)
 {
 	DirectX::XMFLOAT4X4 mat;
@@ -118,6 +157,11 @@ HRESULT SetTransform(IDirect3DDevice9* pDevice, D3DTRANSFORMSTATETYPE State, Dir
 
 void renderFloor()
 {
+	D3DMATERIAL9 material{};
+	material.Diffuse = D3DCOLORVALUE{ 0.0f, 1.0f, 0.0f, 1.0f };
+	material.Ambient = D3DCOLORVALUE{ 1.0f, 1.0f, 1.0f, 1.0f };
+	g_pDevice->SetMaterial(&material);
+
 	SetTransform(g_pDevice, D3DTS_WORLD, DirectX::XMMatrixTranslation(0.0f, 0.0f, 0.0f));
 	g_pDevice->SetStreamSource(0, floorVertexBuffer, 0, sizeof(Vertex));
 	g_pDevice->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 2);
@@ -170,11 +214,13 @@ void initD3D(HWND hWnd)
 	d3dpp.AutoDepthStencilFormat = D3DFMT_D16;
 	g_pD3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, hWnd, D3DCREATE_SOFTWARE_VERTEXPROCESSING, &d3dpp, &g_pDevice);
 
-	g_pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
+	g_pDevice->SetRenderState(D3DRS_LIGHTING, TRUE);
 	g_pDevice->SetRenderState(D3DRS_ZENABLE, TRUE);
 	g_pDevice->SetRenderState(D3DRS_CULLMODE, D3DCULL_NONE);
+	g_pDevice->SetRenderState(D3DRS_AMBIENT, D3DCOLOR_XRGB(50, 50, 50));
 
 	initGraphics();
+	initLight();
 }
 
 void setCamera(DirectX::XMFLOAT3 lookAt)
