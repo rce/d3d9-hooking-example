@@ -182,7 +182,7 @@ public:
 	{
 	}
 
-	void Update()
+	virtual void Update()
 	{
 		DirectX::XMStoreFloat3(&m_position, DirectX::XMVectorAdd(DirectX::XMLoadFloat3(&m_position), DirectX::XMLoadFloat3(&m_velocity)));
 		m_rotation += m_rotationVelocity;
@@ -199,11 +199,11 @@ public:
 	}
 
 	DirectX::XMFLOAT3 GetPosition() { return m_position; }
-
+protected:
+	DirectX::XMFLOAT3 m_velocity;
 private:
 	Cube* m_pModel;
 	DirectX::XMFLOAT3 m_position;
-	DirectX::XMFLOAT3 m_velocity;
 	float m_rotation, m_rotationVelocity;
 };
 
@@ -217,6 +217,16 @@ public:
 	void Update()
 	{
 		Entity::Update();
+		float speed = 0.5f;
+
+		auto direction = DirectX::XMVector3Normalize(DirectX::XMVectorSet(
+			0.0f + (g_keyState.a ? -1.0f : 0.0f) + (g_keyState.d ? 1.0f : 0.0f),
+			0.0f,
+			0.0f + (g_keyState.w ? 1.0f : 0.0f) + (g_keyState.s ? -1.0f : 0.0f),
+			0.0f
+		));
+
+		DirectX::XMStoreFloat3(&m_velocity, DirectX::XMVectorScale(direction, speed));
 	}
 };
 
@@ -249,12 +259,12 @@ void initD3D(HWND hWnd)
 void setCamera(DirectX::XMFLOAT3 lookAt)
 {
 	SetTransform(g_pDevice, D3DTS_VIEW, DirectX::XMMatrixLookAtLH(
-		DirectX::XMVectorSet(0.0f, 5.0f, 10.0f, 1.0f),
+		DirectX::XMVectorSet(0.0f, 25.0f, -50.0f, 1.0f),
 		DirectX::XMVectorSet(lookAt.x, lookAt.y, lookAt.z, 1.0f),
 		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f)
 	));
 
-	SetTransform(g_pDevice, D3DTS_PROJECTION, DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(110), aspectRatio(), 1.0f, 100.0f));
+	SetTransform(g_pDevice, D3DTS_PROJECTION, DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(75), aspectRatio(), 1.0f, 100.0f));
 }
 
 void update()
