@@ -1,5 +1,6 @@
 #include <Windows.h>
 #include <d3d9.h>
+#include <iostream>
 
 #pragma comment (lib, "d3d9.lib")
 
@@ -51,6 +52,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	initD3D(hWnd);
 
+	AllocConsole();
+	FILE *f;
+	freopen_s(&f, "CONIN$", "r", stdin);
+	freopen_s(&f, "CONOUT$", "w", stdout);
+	freopen_s(&f, "CONOUT$", "w", stderr);
+
 	MSG msg;
 	while (true)
 	{
@@ -71,6 +78,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
+	std::cout << "WindowProc(?, " << message << ", ?, ?)" << std::endl;
 	switch (message)
 	{
 	case WM_DESTROY:

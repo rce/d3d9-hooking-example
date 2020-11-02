@@ -40,7 +40,7 @@ HWND GetDummyWindowHandle()
 	return hWnd;
 }
 
-uintptr_t FindEndScene()
+D3DAddresses FindEndScene()
 {
 	HWND hWnd = GetDummyWindowHandle();
 	if (hWnd)
@@ -62,10 +62,14 @@ uintptr_t FindEndScene()
 				std::cout << "pDevice == " << dummy_pDevice << std::endl;
 				auto vmt = *reinterpret_cast<uintptr_t**>(dummy_pDevice);
 				std::cout << "vmt == " << vmt << std::endl;
-				auto addrEndScene = vmt[offsetEndScene / sizeof(uintptr_t)];
-				std::cout << "EndScene == " << std::hex << addrEndScene << std::endl;
+				D3DAddresses result{
+					vmt[offsetEndScene / sizeof(uintptr_t)],
+					vmt[offsetDrawIndexedPrimitive / sizeof(uintptr_t)]
+				};
+				std::cout << "EndScene == " << std::hex << result.addrEndScene << std::endl;
+				std::cout << "DrawIndexedPrimitive == " << std::hex << result.addrDrawIndexedPrimitive << std::endl;
 				if (dummy_pDevice) dummy_pDevice->Release();
-				return addrEndScene;
+				return result;
 			}
 			else
 			{
@@ -83,5 +87,5 @@ uintptr_t FindEndScene()
 		if (hWnd) CloseWindow(hWnd);
 	}
 
-	return 0;
+	return { 0, 0 };
 }

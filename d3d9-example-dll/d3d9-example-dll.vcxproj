@@ -156,6 +156,7 @@
     <ClCompile Include="imgui\imgui_widgets.cpp" />
     <ClCompile Include="injectionlock.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="offsets.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="dummydevice.hpp" />
@@ -169,6 +170,7 @@
     <ClInclude Include="imguioverlay.hpp" />
     <ClInclude Include="injectionlock.hpp" />
     <ClInclude Include="offsets.hpp" />
+    <ClInclude Include="reclass.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

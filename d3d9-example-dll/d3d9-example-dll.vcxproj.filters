@@ -45,6 +45,9 @@
     <ClCompile Include="imgui\imgui_widgets.cpp">
       <Filter>imgui</Filter>
     </ClCompile>
+    <ClCompile Include="offsets.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="hook.hpp">
@@ -78,6 +81,9 @@
       <Filter>imgui</Filter>
     </ClInclude>
     <ClInclude Include="imguioverlay.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="reclass.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
