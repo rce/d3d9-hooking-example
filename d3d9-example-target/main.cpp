@@ -123,22 +123,38 @@ void renderFloor()
 	g_pDevice->DrawPrimitive(D3DPT_TRIANGLELIST, 0, 2);
 }
 
-
-void renderObject(DirectX::XMVECTOR position)
+class Entity
 {
-	auto pos = DirectX::XMMatrixTranslation(
-		DirectX::XMVectorGetX(position),
-		DirectX::XMVectorGetY(position),
-		DirectX::XMVectorGetZ(position));
+public:
+	Entity(DirectX::XMFLOAT3 position, DirectX::XMFLOAT3 velocity, float rotation) : m_pModel(g_pCube), m_position(position), m_velocity(velocity), m_rotation(rotation)
+	{
+	}
 
-	static float rotation = 0.0f;
-	rotation += 0.05f;
+	void Update()
+	{
+		DirectX::XMStoreFloat3(&m_position, DirectX::XMVectorAdd(DirectX::XMLoadFloat3(&m_position), DirectX::XMLoadFloat3(&m_velocity)));
+	}
 
-	auto t = DirectX::XMMatrixRotationY(rotation) * pos;
-	SetTransform(g_pDevice, D3DTS_WORLD, t);
+	void Render()
+	{
+		SetTransform(g_pDevice, D3DTS_WORLD, DirectX::XMMatrixRotationY(m_rotation) * DirectX::XMMatrixTranslation(m_position.x, m_position.y, m_position.z));
+		m_pModel->Render();
+	}
 
-	g_pCube->Render();
-}
+	~Entity()
+	{
+	}
+
+	DirectX::XMFLOAT3 GetPosition() { return m_position; }
+
+private:
+	Cube* m_pModel;
+	DirectX::XMFLOAT3 m_position;
+	DirectX::XMFLOAT3 m_velocity;
+	float m_rotation;
+};
+
+std::vector<Entity*> g_entities;
 
 void initD3D(HWND hWnd)
 {
@@ -161,11 +177,11 @@ void initD3D(HWND hWnd)
 	initGraphics();
 }
 
-void setCamera(DirectX::XMVECTOR lookAt)
+void setCamera(DirectX::XMFLOAT3 lookAt)
 {
 	SetTransform(g_pDevice, D3DTS_VIEW, DirectX::XMMatrixLookAtLH(
 		DirectX::XMVectorSet(0.0f, 5.0f, 10.0f, 1.0f),
-		lookAt,
+		DirectX::XMVectorSet(lookAt.x, lookAt.y, lookAt.z, 1.0f),
 		DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f)
 	));
 
@@ -180,26 +196,13 @@ void render()
 
 	g_pDevice->SetFVF(CUSTOMFVF);
 
-	static auto objectPosition = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-	static auto objectPosition2 = DirectX::XMVectorSet(2.0f, 0.0f, -5.0f, 0.0f);
 
 	renderFloor();
 
-	objectPosition = DirectX::XMVectorSet(
-		DirectX::XMVectorGetX(objectPosition),
-		DirectX::XMVectorGetY(objectPosition) + 0.01f,
-		DirectX::XMVectorGetZ(objectPosition),
-		DirectX::XMVectorGetW(objectPosition));
-	renderObject(objectPosition);
+	for (auto& e : g_entities) e->Update();
+	for (auto& e : g_entities) e->Render();
 
-	objectPosition2 = DirectX::XMVectorSet(
-		DirectX::XMVectorGetX(objectPosition2),
-		DirectX::XMVectorGetY(objectPosition2) + 0.03f,
-		DirectX::XMVectorGetZ(objectPosition2),
-		DirectX::XMVectorGetW(objectPosition2));
-	renderObject(objectPosition2);
-
-	setCamera(objectPosition);
+	setCamera(g_entities[0]->GetPosition());
 
 	g_pDevice->EndScene();
 	g_pDevice->Present(NULL, NULL, NULL, NULL);
@@ -231,6 +234,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 	initD3D(hWnd);
 
+	g_entities.push_back(new Entity({ 0.0f, 0.0f, 0.0f }, { 0.0f, 0.01f, 0.0f }, 0.05f));
+	g_entities.push_back(new Entity({ 2.0f, 0.0f, -5.0f }, { 0.0f, 0.03f, 0.0f }, 0.05f));
+
 	MSG msg;
 	while (true)
 	{
@@ -244,6 +250,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 		render();
 	}
+
+	g_entities.erase(std::remove_if(g_entities.begin(), g_entities.end(),
+		[](Entity* pEntity) { delete pEntity; return true; }));
 
 	cleanupD3D();
 	return msg.wParam;
