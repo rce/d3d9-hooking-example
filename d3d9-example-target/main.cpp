@@ -6,6 +6,8 @@
 
 #pragma comment (lib, "d3d9.lib")
 
+bool g_bRenderDebugLines = true;
+
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 std::pair<int, int> gResolution = { 1280, 720 };
@@ -18,6 +20,44 @@ LPDIRECT3DDEVICE9 g_pDevice;
 
 #define CUSTOMFVF (D3DFVF_XYZ  | D3DFVF_NORMAL)
 struct Vertex { FLOAT x, y, z; D3DVECTOR normal; };
+
+HRESULT SetTransform(IDirect3DDevice9* pDevice, D3DTRANSFORMSTATETYPE State, DirectX::XMMATRIX matrix)
+{
+	DirectX::XMFLOAT4X4 mat;
+	DirectX::XMStoreFloat4x4(&mat, matrix);
+	return pDevice->SetTransform(State, reinterpret_cast<D3DMATRIX*>(&mat));
+}
+
+const D3DCOLORVALUE COLOR_RED = { 1.0f, 0.0f, 0.0f, 1.0f };
+const D3DCOLORVALUE COLOR_GREEN = { 0.0f, 1.0f, 0.0f, 1.0f };
+const D3DCOLORVALUE COLOR_BLUE = { 0.0f, 0.0f, 1.0f, 1.0f };
+const D3DCOLORVALUE COLOR_CYAN = { 0.0f, 1.0f, 1.0f, 1.0f };
+
+void drawLine(DirectX::XMFLOAT3 a, DirectX::XMFLOAT3 b, D3DCOLORVALUE color)
+{
+	Vertex vertices[2] =
+	{
+		{ a.x, a.y, a.z, 1.0f, 0.0f, 0.0f, },
+		{ b.x, b.y, b.z, 1.0f, 0.0f, 0.0f, },
+	};
+
+	D3DMATERIAL9 material{};
+	material.Diffuse = color;
+	material.Ambient = color;
+	g_pDevice->SetMaterial(&material);
+
+	SetTransform(g_pDevice, D3DTS_WORLD, DirectX::XMMatrixIdentity());
+	DWORD oldZENABLE;
+	g_pDevice->GetRenderState(D3DRS_ZENABLE, &oldZENABLE);
+	g_pDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
+	g_pDevice->DrawPrimitiveUP(D3DPT_LINESTRIP, 1, vertices, sizeof(Vertex));
+	g_pDevice->SetRenderState(D3DRS_ZENABLE, oldZENABLE);
+}
+
+void drawLine(DirectX::XMFLOAT3 a, DirectX::XMFLOAT3 b)
+{
+	drawLine(a, b, COLOR_RED);
+}
 
 struct KeyState
 {
@@ -156,13 +196,6 @@ void initLight()
 	g_pDevice->LightEnable(0, TRUE);
 }
 
-HRESULT SetTransform(IDirect3DDevice9* pDevice, D3DTRANSFORMSTATETYPE State, DirectX::XMMATRIX matrix)
-{
-	DirectX::XMFLOAT4X4 mat;
-	DirectX::XMStoreFloat4x4(&mat, matrix);
-	return pDevice->SetTransform(State, reinterpret_cast<D3DMATRIX*>(&mat));
-}
-
 void renderFloor()
 {
 	D3DMATERIAL9 material{};
@@ -188,10 +221,16 @@ public:
 		m_rotation += m_rotationVelocity;
 	}
 
-	void Render()
+	virtual void Render()
 	{
 		SetTransform(g_pDevice, D3DTS_WORLD, DirectX::XMMatrixRotationY(m_rotation) * DirectX::XMMatrixTranslation(m_position.x, m_position.y, m_position.z));
 		m_pModel->Render();
+
+		if (g_bRenderDebugLines)
+		{
+			RenderVelocityLine();
+			RenderHeadingLine();
+		}
 	}
 
 	~Entity()
@@ -199,12 +238,48 @@ public:
 	}
 
 	DirectX::XMFLOAT3 GetPosition() { return m_position; }
+
 protected:
+	DirectX::XMVECTOR Heading()
+	{
+		DirectX::XMFLOAT3 vector(0.0f, 0.0f, 1.0f);
+		auto r = -m_rotation;
+		return DirectX::XMVectorSet(
+			(cos(r) * vector.x) - (sin(r) * vector.z),
+			vector.y,
+			(sin(r) * vector.x) + (cos(r) * vector.z),
+			0.0f
+		);
+	}
+
 	DirectX::XMFLOAT3 m_velocity;
+	float m_rotation, m_rotationVelocity;
+
 private:
+	void RenderVelocityLine()
+	{
+		DirectX::XMFLOAT3 vector;
+		DirectX::XMStoreFloat3(&vector, DirectX::XMVectorAdd(
+			DirectX::XMLoadFloat3(&m_position),
+			DirectX::XMVectorScale(DirectX::XMLoadFloat3(&m_velocity), 15.0f)
+		));
+		drawLine(m_position, vector, COLOR_CYAN);
+	}
+	void RenderHeadingLine()
+	{
+		//auto heading = DirectX::XMVectorSet(0.0f, m_rotation, 0.0f, 0.0f);
+		// drawLine m_position (mPosition + scale(normalize(heading), 15.0f))
+		auto heading = Heading();
+		DirectX::XMFLOAT3 vector;
+		DirectX::XMStoreFloat3(&vector, DirectX::XMVectorAdd(
+			DirectX::XMLoadFloat3(&m_position),
+			DirectX::XMVectorScale(DirectX::XMVector3Normalize(heading), 15.0f)
+		));
+		drawLine(m_position, vector, COLOR_BLUE);
+	}
+
 	Cube* m_pModel;
 	DirectX::XMFLOAT3 m_position;
-	float m_rotation, m_rotationVelocity;
 };
 
 class Player : public Entity
@@ -217,16 +292,20 @@ public:
 	void Update()
 	{
 		Entity::Update();
+		auto headingScaledByInput = DirectX::XMVectorScale(
+			DirectX::XMVector3Normalize(Heading()),
+			0.0f + (g_keyState.w ? 1.0f : 0.0f) + (g_keyState.s ? -1.0f : 0.0f)
+		);
+
+		m_rotationVelocity = 0.0f + (g_keyState.a ? -0.01f : 0.0f) + (g_keyState.d ? 0.01f : 0.0f);
+
 		float speed = 0.5f;
+		DirectX::XMStoreFloat3(&m_velocity, DirectX::XMVectorScale(headingScaledByInput, speed));
+	}
 
-		auto direction = DirectX::XMVector3Normalize(DirectX::XMVectorSet(
-			0.0f + (g_keyState.a ? -1.0f : 0.0f) + (g_keyState.d ? 1.0f : 0.0f),
-			0.0f,
-			0.0f + (g_keyState.w ? 1.0f : 0.0f) + (g_keyState.s ? -1.0f : 0.0f),
-			0.0f
-		));
-
-		DirectX::XMStoreFloat3(&m_velocity, DirectX::XMVectorScale(direction, speed));
+	void Render()
+	{
+		Entity::Render();
 	}
 };
 
@@ -299,23 +378,6 @@ void update()
 		e->Update();
 
 	g_pCamera->Update();
-}
-
-void drawLine(DirectX::XMFLOAT3 a, DirectX::XMFLOAT3 b)
-{
-	Vertex vertices[2] =
-	{
-		{ a.x, a.y, a.z, 1.0f, 0.0f, 0.0f, },
-		{ b.x, b.y, b.z, 1.0f, 0.0f, 0.0f, },
-	};
-
-	D3DMATERIAL9 material{};
-	material.Diffuse = D3DCOLORVALUE{ 1.0f, 1.0f, 1.0f, 1.0f };
-	material.Ambient = D3DCOLORVALUE{ 1.0f, 0.0f, 0.0f, 1.0f };
-	g_pDevice->SetMaterial(&material);
-
-	SetTransform(g_pDevice, D3DTS_WORLD, DirectX::XMMatrixIdentity());
-	g_pDevice->DrawPrimitiveUP(D3DPT_LINESTRIP, 1, vertices, sizeof(Vertex));
 }
 
 void render()
