@@ -309,25 +309,13 @@ void drawLine(DirectX::XMFLOAT3 a, DirectX::XMFLOAT3 b)
 		{ b.x, b.y, b.z, 1.0f, 0.0f, 0.0f, },
 	};
 
-	static LPDIRECT3DVERTEXBUFFER9 pVertexBuffer = nullptr;
-	if (pVertexBuffer == nullptr)
-	{
-		g_pDevice->CreateVertexBuffer(sizeof(vertices), 0, CUSTOMFVF, D3DPOOL_MANAGED, &pVertexBuffer, NULL);
-	}
-
-	VOID* pVoid;
-	pVertexBuffer->Lock(0, 0, &pVoid, 0);
-	memcpy(pVoid, vertices, sizeof(vertices));
-	pVertexBuffer->Unlock();
-
 	D3DMATERIAL9 material{};
 	material.Diffuse = D3DCOLORVALUE{ 1.0f, 1.0f, 1.0f, 1.0f };
 	material.Ambient = D3DCOLORVALUE{ 1.0f, 0.0f, 0.0f, 1.0f };
 	g_pDevice->SetMaterial(&material);
 
 	SetTransform(g_pDevice, D3DTS_WORLD, DirectX::XMMatrixIdentity());
-	g_pDevice->SetStreamSource(0, pVertexBuffer, 0, sizeof(Vertex));
-	g_pDevice->DrawPrimitive(D3DPT_LINESTRIP, 0, 1);
+	g_pDevice->DrawPrimitiveUP(D3DPT_LINESTRIP, 1, vertices, sizeof(Vertex));
 }
 
 void render()
