@@ -65,6 +65,7 @@ struct KeyState
 	bool q, l;
 };
 
+KeyState g_previousKeyState{};
 KeyState g_keyState{};
 
 LPDIRECT3DVERTEXBUFFER9 floorVertexBuffer;
@@ -374,10 +375,15 @@ Camera* g_pCamera;
 
 void update()
 {
+	if (g_keyState.l && !g_previousKeyState.l)
+		g_bRenderDebugLines = !g_bRenderDebugLines;
+
 	for (auto& e : g_entities)
 		e->Update();
 
 	g_pCamera->Update();
+
+	g_previousKeyState = g_keyState;
 }
 
 void render()
@@ -393,7 +399,7 @@ void render()
 	for (auto& e : g_entities)
 		e->Render();
 
-	if (g_keyState.l)
+	if (g_bRenderDebugLines)
 		for (auto& e : g_entities)
 			if (e != g_pPlayer)
 				drawLine(g_pPlayer->GetPosition(), e->GetPosition());
