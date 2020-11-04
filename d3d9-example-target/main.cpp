@@ -223,19 +223,19 @@ void renderFloor()
 class Entity
 {
 public:
-	Entity(DirectX::XMFLOAT3 position, DirectX::XMFLOAT3 velocity, float rotationVelocity) : m_pModel(g_pCube), m_position(position), m_velocity(velocity), m_rotation(0.0f), m_rotationVelocity(rotationVelocity)
+	Entity(DirectX::XMFLOAT3 position, DirectX::XMFLOAT3 velocity, float rotationVelocity) : m_pModel(g_pCube), m_position(position), m_velocity(velocity), m_rotY(0.0f), m_rotationVelocity(rotationVelocity)
 	{
 	}
 
 	virtual void Update()
 	{
 		DirectX::XMStoreFloat3(&m_position, DirectX::XMVectorAdd(DirectX::XMLoadFloat3(&m_position), DirectX::XMLoadFloat3(&m_velocity)));
-		m_rotation += m_rotationVelocity;
+		m_rotY += m_rotationVelocity;
 	}
 
 	virtual void Render()
 	{
-		SetTransform(g_pDevice, D3DTS_WORLD, DirectX::XMMatrixRotationY(m_rotation) * DirectX::XMMatrixTranslation(m_position.x, m_position.y, m_position.z));
+		SetTransform(g_pDevice, D3DTS_WORLD, DirectX::XMMatrixRotationY(m_rotY) * DirectX::XMMatrixTranslation(m_position.x, m_position.y, m_position.z));
 		m_pModel->Render();
 
 		if (g_bRenderDebugLines)
@@ -255,17 +255,17 @@ protected:
 	DirectX::XMVECTOR Heading()
 	{
 		DirectX::XMFLOAT3 vector(0.0f, 0.0f, 1.0f);
-		auto r = -m_rotation;
-		return DirectX::XMVectorSet(
+		auto r = -m_rotY;
+		return DirectX::XMVector3Normalize(DirectX::XMVectorSet(
 			(cos(r) * vector.x) - (sin(r) * vector.z),
 			vector.y,
 			(sin(r) * vector.x) + (cos(r) * vector.z),
 			0.0f
-		);
+		));
 	}
 
 	DirectX::XMFLOAT3 m_velocity;
-	float m_rotation, m_rotationVelocity;
+	float m_rotY, m_rotationVelocity;
 
 private:
 	void RenderVelocityLine()
@@ -304,15 +304,23 @@ public:
 	void Update()
 	{
 		Entity::Update();
-		auto headingScaledByInput = DirectX::XMVectorScale(
-			DirectX::XMVector3Normalize(Heading()),
-			0.0f + (g_keyState.w ? 1.0f : 0.0f) + (g_keyState.s ? -1.0f : 0.0f)
-		);
 
-		m_rotationVelocity = 0.0f + (g_keyState.a ? -0.01f : 0.0f) + (g_keyState.d ? 0.01f : 0.0f);
+		auto diffX = g_mouseState.posX - g_previousMouseState.posX;
+		m_rotY = m_rotY + static_cast<float>(diffX) / 100.0f;
+
+
+		auto vel = DirectX::XMVector3Normalize(DirectX::XMVectorSet(
+			0.0f + (g_keyState.a ? -1.0f : 0.0f) + (g_keyState.d ? 1.0f : 0.0f),
+			0.0f,
+			0.0f + (g_keyState.w ? 1.0f : 0.0f) + (g_keyState.s ? -1.0f : 0.0f),
+			0.0f
+		));
 
 		float speed = 0.5f;
-		DirectX::XMStoreFloat3(&m_velocity, DirectX::XMVectorScale(headingScaledByInput, speed));
+		DirectX::XMStoreFloat3(&m_velocity, DirectX::XMVector3Rotate(
+			DirectX::XMVectorScale(vel, speed),
+			DirectX::XMQuaternionRotationRollPitchYaw(0.0f, m_rotY, 0.0f)
+		));
 	}
 
 	void Render()
@@ -374,11 +382,11 @@ public:
 		auto diffX = g_mouseState.posX - g_previousMouseState.posX;
 		auto diffY = g_mouseState.posY - g_previousMouseState.posY;
 
-		auto diffWheel = g_mouseState.wheelY - g_previousMouseState.wheelY;
-		m_distance = std::clamp(m_distance + (-diffWheel / 100.0f), 1.0f, 100.0f);
-
 		m_rotX = std::clamp(m_rotX - static_cast<float>(diffY) / 100.0f, -1.5f, 1.5f);
 		m_rotY = m_rotY + static_cast<float>(diffX) / 100.0f;
+
+		auto diffWheel = g_mouseState.wheelY - g_previousMouseState.wheelY;
+		m_distance = std::clamp(m_distance + (-diffWheel / 100.0f), 1.0f, 100.0f);
 
 		m_position = CalculateCamPosition();
 	}
@@ -399,7 +407,7 @@ private:
 	Entity* m_pLookAtEntity;
 	float m_distance = 20.0;
 	float m_rotX = -1.0f;
-	float m_rotY = 0.0f;
+	float m_rotY = DirectX::XMConvertToRadians(180);
 };
 
 Camera* g_pCamera;
