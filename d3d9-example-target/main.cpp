@@ -374,6 +374,9 @@ public:
 		auto diffX = g_mouseState.posX - g_previousMouseState.posX;
 		auto diffY = g_mouseState.posY - g_previousMouseState.posY;
 
+		auto diffWheel = g_mouseState.wheelY - g_previousMouseState.wheelY;
+		m_distance = std::clamp(m_distance + (-diffWheel / 100.0f), 1.0f, 100.0f);
+
 		m_rotX = std::clamp(m_rotX - static_cast<float>(diffY) / 100.0f, -1.5f, 1.5f);
 		m_rotY = m_rotY + static_cast<float>(diffX) / 100.0f;
 
@@ -545,6 +548,8 @@ void updateKeyState(WPARAM keyCode, bool state)
 
 }
 
+#define HasFlag(value, flag) ((value & flag) == flag)
+
 void HandleRawInput(HRAWINPUT lParam)
 {
 	UINT dwSize;
@@ -568,12 +573,12 @@ void HandleRawInput(HRAWINPUT lParam)
 	}
 	else if (raw->header.dwType == RIM_TYPEMOUSE)
 	{
-		if ((raw->data.mouse.usFlags & MOUSE_MOVE_RELATIVE) == MOUSE_MOVE_RELATIVE)
+		if (HasFlag(raw->data.mouse.usFlags, MOUSE_MOVE_RELATIVE))
 		{
 			g_mouseState.posX += raw->data.mouse.lLastX;
 			g_mouseState.posY += raw->data.mouse.lLastY;
 		}
-		else if ((raw->data.mouse.usFlags & MOUSE_MOVE_ABSOLUTE) == MOUSE_MOVE_ABSOLUTE)
+		else if (HasFlag(raw->data.mouse.usFlags, MOUSE_MOVE_ABSOLUTE))
 		{
 			// MOUSE_MOVE_ABSOLUTE not handled
 		}
@@ -601,12 +606,15 @@ void HandleRawInput(HRAWINPUT lParam)
 		{
 			g_mouseState.mouse3 = false;
 		}
-		else if (raw->data.mouse.ulButtons == RI_MOUSE_WHEEL)
+
+		if (HasFlag(raw->data.mouse.usButtonFlags, RI_MOUSE_WHEEL))
 		{
-			g_mouseState.wheelY += raw->data.mouse.usButtonData;
+			auto delta = static_cast<float>(static_cast<short>(raw->data.mouse.usButtonData));
+			g_mouseState.wheelY += delta;
 		}
-		else if (raw->data.mouse.ulButtons == RI_MOUSE_HWHEEL)
+		if (HasFlag(raw->data.mouse.usButtonFlags, RI_MOUSE_HWHEEL))
 		{
+			auto delta = static_cast<float>(static_cast<short>(raw->data.mouse.usButtonData));
 			g_mouseState.wheelX = raw->data.mouse.usButtonData;
 		}
 	}
