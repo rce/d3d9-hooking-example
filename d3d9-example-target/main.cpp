@@ -3,6 +3,7 @@
 #include <DirectXMath.h>
 #include <iostream>
 #include <filesystem>
+#include <algorithm>
 
 #pragma comment (lib, "d3d9.lib")
 
@@ -65,8 +66,18 @@ struct KeyState
 	bool q, l;
 };
 
+struct MouseState
+{
+	bool mouse1, mouse2, mouse3;
+	int posX, posY;
+	int wheelX, wheelY;
+};
+
 KeyState g_previousKeyState{};
 KeyState g_keyState{};
+
+MouseState g_previousMouseState{};
+MouseState g_mouseState{};
 
 LPDIRECT3DVERTEXBUFFER9 floorVertexBuffer;
 Vertex floorVertices[] =
@@ -339,18 +350,34 @@ void initD3D(HWND hWnd)
 class Camera
 {
 public:
-	Camera(Entity *pLookAtEntity) : m_pLookAtEntity(pLookAtEntity), m_position({ 0.0f, m_height, -250.0f})
+	Camera(Entity *pLookAtEntity) :
+		m_pLookAtEntity(pLookAtEntity)
 	{
+		m_position = CalculateCamPosition();
 	}
 
+	DirectX::XMFLOAT3 CalculateCamPosition()
+	{
+		auto camOffset = DirectX::XMVectorScale(DirectX::XMVector3Rotate(
+			DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f),
+			DirectX::XMQuaternionRotationRollPitchYaw(m_rotX, m_rotY, 0.0f)
+		), m_distance);
+
+		auto lookAt = DirectX::XMLoadFloat3(&m_pLookAtEntity->GetPosition());
+
+		DirectX::XMFLOAT3 result;
+		DirectX::XMStoreFloat3(&result, DirectX::XMVectorAdd(lookAt, camOffset));
+		return result;
+	}
 	void Update()
 	{
-		auto lookAt = DirectX::XMLoadFloat3(&m_pLookAtEntity->GetPosition());
-		auto cameraPosition = DirectX::XMLoadFloat3(&m_position);
+		auto diffX = g_mouseState.posX - g_previousMouseState.posX;
+		auto diffY = g_mouseState.posY - g_previousMouseState.posY;
 
-		auto followVector = DirectX::XMVectorSetY(lookAt, m_height);
-		auto clampedDiff = DirectX::XMVector3ClampLength(DirectX::XMVectorSubtract(cameraPosition, followVector), m_minDistance, m_maxDistance);
-		DirectX::XMStoreFloat3(&m_position, DirectX::XMVectorAdd(followVector, clampedDiff));
+		m_rotX = std::clamp(m_rotX - static_cast<float>(diffY) / 100.0f, -1.5f, 1.5f);
+		m_rotY = m_rotY + static_cast<float>(diffX) / 100.0f;
+
+		m_position = CalculateCamPosition();
 	}
 
 	void Render()
@@ -367,8 +394,9 @@ public:
 private:
 	DirectX::XMFLOAT3 m_position;
 	Entity* m_pLookAtEntity;
-	float m_minDistance = 15.0f, m_maxDistance = 25.0f;
-	float m_height = 25.0f;
+	float m_distance = 20.0;
+	float m_rotX = -1.0f;
+	float m_rotY = 0.0f;
 };
 
 Camera* g_pCamera;
@@ -384,6 +412,7 @@ void update()
 	g_pCamera->Update();
 
 	g_previousKeyState = g_keyState;
+	g_previousMouseState = g_mouseState;
 }
 
 void render()
@@ -416,6 +445,17 @@ void cleanupD3D()
 	floorVertexBuffer->Release();
 	g_pDevice->Release();
 	g_pD3D->Release();
+}
+
+bool registerRawInput()
+{
+	RAWINPUTDEVICE Rid[] =
+	{
+		{0x01, 0x02, RIDEV_NOLEGACY, 0},
+		{0x01, 0x06, RIDEV_NOLEGACY, 0}
+	};
+
+	return RegisterRawInputDevices(Rid, 2, sizeof(Rid[0])) != FALSE;
 }
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow)
@@ -459,6 +499,13 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	MSG msg;
 
 	bool quit = false;
+
+	if (!registerRawInput())
+	{
+		std::cout << "Failed to register for raw input devices" << std::endl;
+		quit = true;
+	}
+
 	while (!quit)
 	{
 		while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE))
@@ -498,15 +545,82 @@ void updateKeyState(WPARAM keyCode, bool state)
 
 }
 
+void HandleRawInput(HRAWINPUT lParam)
+{
+	UINT dwSize;
+	GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
+	auto lpb = std::make_unique<BYTE[]>(dwSize);
+
+	if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb.get(), &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
+		std::cout << "GetRAwInputData does not return correct size!" << std::endl;
+
+	RAWINPUT* raw = (RAWINPUT*)lpb.get();
+	if (raw->header.dwType == RIM_TYPEKEYBOARD)
+	{
+		if (raw->data.keyboard.Message == WM_KEYDOWN)
+		{
+			updateKeyState(raw->data.keyboard.VKey, true);
+		}
+		else if (raw->data.keyboard.Message == WM_KEYUP)
+		{
+			updateKeyState(raw->data.keyboard.VKey, false);
+		}
+	}
+	else if (raw->header.dwType == RIM_TYPEMOUSE)
+	{
+		if ((raw->data.mouse.usFlags & MOUSE_MOVE_RELATIVE) == MOUSE_MOVE_RELATIVE)
+		{
+			g_mouseState.posX += raw->data.mouse.lLastX;
+			g_mouseState.posY += raw->data.mouse.lLastY;
+		}
+		else if ((raw->data.mouse.usFlags & MOUSE_MOVE_ABSOLUTE) == MOUSE_MOVE_ABSOLUTE)
+		{
+			// MOUSE_MOVE_ABSOLUTE not handled
+		}
+		else if (raw->data.mouse.ulButtons == RI_MOUSE_BUTTON_1_DOWN)
+		{
+			g_mouseState.mouse1 = true;
+		}
+		else if (raw->data.mouse.ulButtons == RI_MOUSE_BUTTON_1_UP)
+		{
+			g_mouseState.mouse1 = false;
+		}
+		else if (raw->data.mouse.ulButtons == RI_MOUSE_BUTTON_2_DOWN)
+		{
+			g_mouseState.mouse2 = true;
+		}
+		else if (raw->data.mouse.ulButtons == RI_MOUSE_BUTTON_2_UP)
+		{
+			g_mouseState.mouse2 = false;
+		}
+		else if (raw->data.mouse.ulButtons == RI_MOUSE_BUTTON_3_DOWN)
+		{
+			g_mouseState.mouse3 = true;
+		}
+		else if (raw->data.mouse.ulButtons == RI_MOUSE_BUTTON_3_UP)
+		{
+			g_mouseState.mouse3 = false;
+		}
+		else if (raw->data.mouse.ulButtons == RI_MOUSE_WHEEL)
+		{
+			g_mouseState.wheelY += raw->data.mouse.usButtonData;
+		}
+		else if (raw->data.mouse.ulButtons == RI_MOUSE_HWHEEL)
+		{
+			g_mouseState.wheelX = raw->data.mouse.usButtonData;
+		}
+	}
+}
+
 LRESULT CALLBACK WindowProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	switch (message)
 	{
-	case WM_KEYDOWN:
-		updateKeyState(wParam, true);
-		break;
-	case WM_KEYUP:
-		updateKeyState(wParam, false);
+	case WM_INPUT:
+		if (GET_RAWINPUT_CODE_WPARAM(wParam) == RIM_INPUT)
+		{
+			HandleRawInput((HRAWINPUT)lParam);
+		}
 		break;
 	case WM_DESTROY:
 		PostQuitMessage(0);
